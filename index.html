@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>이온결합 형성 과정 시뮬레이션 게임</title>
+    
+    <!-- [외부 라이브러리 연동] -->
+    <!-- Tailwind CSS: 레이아웃 및 반응형 그리드 시스템용 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- ========================================== -->
+    <!-- [CSS 스타일시트 영역]                       -->
+    <!-- ========================================== -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Nanum Gothic', sans-serif;
+            touch-action: manipulation;
+        }
+        
+        /* 드래그 및 기본 인터랙션 커서 제어 */
+        .cursor-grab { 
+            cursor: grab; 
+        }
+        .cursor-grabbing { 
+            cursor: grabbing; 
+        }
+        
+        /* 스크롤바 커스텀 스타일링 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 overflow-hidden h-screen flex flex-col">
+
+    <!-- [상단 헤더 내비게이션] -->
+    <header class="bg-indigo-600 text-white py-3 px-4 shadow-md flex justify-between items-center z-10">
+        <div class="flex items-center space-x-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+            </svg>
+            <h1 class="text-base md:text-lg font-bold tracking-tight">통합과학 이온결합 탐구 시뮬레이션</h1>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button id="btn-sound" class="p-1.5 rounded-full bg-indigo-500 hover:bg-indigo-400 transition" title="소리 켜기/끄기">
+                <!-- 사운드 ON 아이콘 -->
+                <svg id="icon-sound-on" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                </svg>
+                <!-- 사운드 OFF 아이콘 -->
+                <svg id="icon-sound-off" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zm11.543-4.143l3.536 3.536m0-3.536l-3.536 3.536"></path>
+                </svg>
+            </button>
+            <span class="text-xs bg-indigo-800 px-2.5 py-1 rounded-full font-bold">고등학교 통합과학1</span>
+        </div>
+    </header>
+
+    <!-- [메인 프레임워크 바디] -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- 좌측 컨트롤 패널 (30~35% 폭 배치, 각 항목 간격을 약 90%로 축소) -->
+        <section class="w-full md:w-[32%] lg:w-[28%] bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col h-[40%] md:h-full overflow-y-auto">
+            
+            <!-- [스테이지 진행 헤더 정보] -->
+            <div class="p-3 border-b border-slate-100 bg-slate-50">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span id="stage-badge" class="text-xs font-bold text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-full">STAGE 1</span>
+                </div>
+                <h2 id="stage-title" class="text-lg font-bold text-slate-800 mb-0.5">염화 나트륨 (NaCl) 형성</h2>
+                <p id="stage-description" class="text-xs text-slate-500">나트륨 원자의 원자가 전자를 염소 원자로 이동시켜 결합을 완성해봅시다.</p>
+            </div>
+
+            <!-- [수행 안내 가이드 & 힌트] -->
+            <div class="p-3 flex-1 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">현재 수행 과제</h3>
+                    <div id="mission-card" class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-3">
+                        <p id="mission-text" class="text-sm font-bold text-indigo-900 leading-relaxed">
+                            💡 왼쪽 나트륨(Na)의 원자가 전자(가장 바깥쪽 전자 껍질의 전자)를 드래그하여 오른쪽 염소(Cl)의 빈 자리에 밀어 넣으세요.
+                        </p>
+                    </div>
+
+                    <!-- 이온 정보 상태 카드 -->
+                    <div class="space-y-1.5 mb-3">
+                        <div class="bg-slate-50 rounded-lg p-2.5 flex justify-between items-center border border-slate-100">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+                                <span id="metal-label" class="text-xs font-bold text-slate-600">금속 원소 (이온화)</span>
+                            </div>
+                            <span id="metal-status" class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">Na (전하: 0)</span>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-2.5 flex justify-between items-center border border-slate-100">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span id="nonmetal-label" class="text-xs font-bold text-slate-600">비금속 원소 (이온화)</span>
+                            </div>
+                            <span id="nonmetal-status" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Cl (전하: 0)</span>
+                        </div>
+                    </div>
+
+                    <!-- 안정한 전자 배치 핵심 원리 카드 -->
+                    <div class="border border-indigo-100 rounded-lg overflow-hidden bg-indigo-50/20">
+                        <div class="bg-indigo-50/80 px-3 py-1.5 text-xs font-bold text-indigo-900 flex items-center space-x-1">
+                            <span>💡 안정한 전자 배치 핵심 원리</span>
+                        </div>
+                        <div class="p-2.5 bg-white text-xs text-slate-600 leading-relaxed space-y-1 border-t border-indigo-50">
+                            <p>• <b>안정한 전자 배치:</b> 원자는 가장 바깥 전자 껍질에 8개의 전자를 채워 18족 원소와 같이 안정한 전자 배치를 이루려 합니다.</p>
+                            <p>• <b>양이온:</b> 금속 원소는 전자를 잃고 양(+)전하를 띱니다.</p>
+                            <p>• <b>음이온:</b> 비금속 원소는 전자를 얻어 음(-)전하를 띱니다.</p>
+                            <p>• <b>이온결합:</b> 양이온과 음이온 사이의 <b>정전기적 인력</b>으로 형성되는 화학 결합입니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [하단 액션 영역 제어 버튼: 3가지 버튼 상시 배치화 및 간격 최적화] -->
+                <div class="mt-3 pt-3 border-t border-slate-100 flex flex-col space-y-2">
+                    <!-- 1열: 현재 단계 다시 하기 -->
+                    <button onclick="resetCurrentStage()" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition flex justify-center items-center space-x-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H18M4 8h16V4"></path>
+                        </svg>
+                        <span>현재 단계 다시 하기</span>
+                    </button>
+                    
+                    <!-- 2열: 처음부터 다시 하기 & 다음 물질 탐구 (가로 분산 배치) -->
+                    <div class="flex space-x-2">
+                        <!-- 처음부터 다시 하기 -->
+                        <button id="btn-restart-game" onclick="restartGame()" class="flex-1 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-bold text-xs transition flex justify-center items-center space-x-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H18M4 8h16V4"></path>
+                            </svg>
+                            <span>처음부터 다시 하기</span>
+                        </button>
+                        
+                        <!-- 다음 물질 탐구 (동적 제어) -->
+                        <button id="btn-next-stage" disabled onclick="goToNextStage()" class="flex-1 py-2 bg-slate-300 text-slate-500 cursor-not-allowed rounded-lg font-bold text-xs transition flex justify-center items-center space-x-1">
+                            <span id="btn-next-text">다음 물질 탐구</span>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 우측 시뮬레이션 영역 (65~70% 폭 배정) -->
+        <section class="flex-1 relative bg-slate-100 flex flex-col h-[60%] md:h-full">
+            <!-- 캔버스 드로잉 컨테이너 -->
+            <div id="canvas-container" class="flex-1 w-full h-full relative overflow-hidden">
+                <canvas id="game-canvas" class="block w-full h-full bg-slate-900"></canvas>
+            </div>
+
+            <!-- 하단 진행 상태 패널 -->
+            <div class="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-slate-200/50 flex justify-between items-center shadow-md">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold text-slate-500">진행도:</span>
+                    <div class="flex space-x-1">
+                        <span id="dot-0" class="w-3 h-3 rounded-full bg-indigo-600"></span>
+                        <span id="dot-1" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                        <span id="dot-2" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-slate-600">
+                    실시간 상태: <span id="simulation-status-text" class="text-indigo-600">전자 이동 대기 중</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- [대화형 모달 창: 성공 가이드북] -->
+    <div id="modal-container" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <!-- 모달 크기를 max-w-xl(576px)로 확장하여 2배 크기 텍스트 수용 환경 확보 -->
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 transform scale-95 transition-all">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-2">이온결합 성공! 🎉</h3>
+                
+                <!-- 결합 결과 화학 반응식 표시 판넬 -->
+                <div class="my-4 p-3 bg-amber-50 rounded-xl border border-amber-100 inline-block">
+                    <p id="chemical-equation" class="text-lg font-extrabold text-amber-800 tracking-wider">Na<sup>+</sup> + Cl<sup>-</sup> → NaCl</p>
+                </div>
+
+                <!-- 탐구 완료 상세 요약 텍스트 (글자 크기 text-2xl 설정) -->
+                <div class="text-left bg-slate-50 p-5 rounded-xl text-2xl text-slate-700 leading-relaxed mb-6 space-y-3 max-h-[45vh] overflow-y-auto">
+                    <p id="modal-detail-text">
+                        금속인 나트륨 원자가 비금속인 염소 원자에게 전자를 완전히 주어 각각 안정한 전자 배치를 가진 양이온(Na<sup>+</sup>)과 음이온(Cl<sup>-</sup>)이 되었습니다. 이후 정전기적 인력에 의해 결합했습니다.
+                    </p>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button onclick="closeModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">
+                        결과 닫기
+                    </button>
+                    <!-- 결과 닫기만 표시하기 위해 이 버튼은 영구적으로 비활성화(hidden)됩니다. -->
+                    <button id="modal-next-btn" onclick="goToNextStageFromModal()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition hidden">
+                        다음 미션으로
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- [토스트 팝업 컨테이너] -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+
+    <!-- ========================================== -->
+    <!-- [JAVASCRIPT 로직 엔진 영역]                 -->
+    <!-- ========================================== -->
+    <script>
+        // ==========================================
+        // 1. 사운드 이펙트 신디사이저 엔진 (Web Audio API)
+        // ==========================================
+        const AudioEngine = {
+            ctx: null,
+            muted: false,
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+
+            toggleMute() {
+                this.muted = !this.muted;
+                document.getElementById('icon-sound-on').classList.toggle('hidden', this.muted);
+                document.getElementById('icon-sound-off').classList.toggle('hidden', !this.muted);
+                showToast(this.muted ? "소리가 꺼졌습니다." : "소리가 켜졌습니다.");
+            },
+
+            playClick() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+
+            playTransfer() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.25);
+                
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.26);
+            },
+
+            playSuccess() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [261.63, 329.63, 392.00, 523.25]; // 도(C4), 미(E4), 솔(G4), 도(C5)의 상쾌한 배음
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.08);
+                    
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.12, now + index * 0.08 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.08 + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + index * 0.08);
+                    osc.stop(now + index * 0.08 + 0.3);
+                });
+            },
+
+            playFailure() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.3);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.35);
+            }
+        };
+
+
+        // ==========================================
+        // 2. 스테이지별 구조 데이터 매트릭스
+        // ==========================================
+        const STAGES = [
+            {
+                name: "염화 나트륨 (NaCl)",
+                desc: "우리 주변의 소금 성분으로, 대표적인 이온결합 물질입니다.",
+                equation: "Na<sup>+</sup> + Cl<sup>-</sup> → NaCl",
+                metal: {
+                    name: "나트륨", symbol: "Na", pCount: 11,
+                    shells: [2, 8, 1],
+                    color: "#f87171",
+                    textColor: "#991b1b"
+                },
+                nonmetal: {
+                    name: "염소", symbol: "Cl", pCount: 17,
+                    shells: [2, 8, 7],
+                    color: "#f87171",
+                    textColor: "#991b1b"
+                },
+                transferNeeded: 1,
+                nonmetalCount: 1,
+                detail: "나트륨 원자(Na)는 세 번째 전자 껍질에 있는 전자 1개를 염소 원자(Cl)로 보냅니다. 나트륨 원자는 전자를 하나 잃어 나트륨 이온(Na<sup>+</sup>)이 되고, 염소 원자는 전자를 하나 얻어 염화 이온(Cl<sup>-</sup>)이 되면서 가장 바깥 전자 껍질에 8개의 전자를 채워 안정해집니다. 이후 두 이온 사이에는 정전기적 인력이 작용하여 서로 결합하게 됩니다."
+            },
+            {
+                name: "플루오린화 마그네슘 (MgF₂)",
+                desc: "치약의 충치 예방 성분(플루오린)이 포함되어 있으며, 유리 코팅 등에 쓰이는 이온결합 물질입니다.",
+                equation: "Mg<sup>2+</sup> + 2F<sup>-</sup> → MgF<sub>2</sub>",
+                metal: {
+                    name: "마그네슘", symbol: "Mg", pCount: 12,
+                    shells: [2, 8, 2],
+                    color: "#f87171",
+                    textColor: "#991b1b"
+                },
+                nonmetal: {
+                    name: "플루오린", symbol: "F", pCount: 9,
+                    shells: [2, 7], // 9번 플루오린: 첫 번째 전자 껍질 2개, 두 번째 전자 껍질 7개 (빈자리 1개 필요)
+                    color: "#f87171",
+                    textColor: "#991b1b"
+                },
+                transferNeeded: 2,
+                nonmetalCount: 2,
+                detail: "마그네슘 원자(Mg)는 안정한 이온(Mg<sup>2+</sup>)이 되기 위해 2개의 전자를 잃어야 합니다. 그러나 플루오린 원자(F)는 1개의 전자만 더 받아들일 수 있으므로, 마그네슘 원자 1개당 2개의 플루오린 원자가 반응하여 양이온과 음이온이 1:2 비율로 결합해 플루오린화 마그네슘(MgF<sub>2</sub>)을 완성합니다."
+            },
+            {
+                name: "산화 마그네슘 (MgO)",
+                desc: "내화물이나 제산제로 쓰이며, 2가의 전하를 가지는 물질입니다.",
+                equation: "Mg<sup>2+</sup> + O<sup>2-</sup> → MgO",
+                metal: {
+                    name: "마그네슘", symbol: "Mg", pCount: 12,
+                    shells: [2, 8, 2],
+                    color: "#f87171",
+                    textColor: "#991b1b"
+                },
+                nonmetal: {
+                    name: "산소", symbol: "O", pCount: 8,
+                    shells: [2, 6],
+                    color: "#f87171",
+                    textColor: "#991b1b"
+                },
+                transferNeeded: 2,
+                nonmetalCount: 1,
+                detail: "마그네슘 원자(Mg)는 세 번째 전자 껍질의 전자 2개를 모두 산소 원자(O)로 이동시켜야만 18족 원소와 같은 안정한 전자 배치를 갖는 마그네슘 이온(Mg<sup>2+</sup>)이 됩니다. 산소 원자는 가장 바깥 전자껍질에 2개의 전자가 추가로 채워져 산화 이온(O<sup>2-</sup>)이 됩니다. 이후 두 이온 사이에는 정전기적 인력이 작용하여 서로 결합하게 됩니다."
+            }
+        ];
+
+
+        // ==========================================
+        // 3. 글로벌 시뮬레이션 상태 변수
+        // ==========================================
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = 800;
+        let height = 600;
+
+        let currentStageIdx = 0;
+        let currentStageData = null;
+        
+        const STATE = {
+            ELECTRON_TRANSFER: 'electron_transfer',
+            ION_ATTRACTION: 'ion_attraction',
+            SUCCESS: 'success'
+        };
+        let gameState = STATE.ELECTRON_TRANSFER;
+
+        // 게임 물리 객체 참조 변수
+        let atomMetal = null;
+        let atomsNonmetal = [];
+
+        // 인터랙션 제어 플래그
+        let selectedElectron = null;
+        let isDraggingAtom = false;
+        let dragTarget = null; // 'metal' | 'nonmetal0' | 'nonmetal1'
+
+        // 이온 전자 껍질 렌더링 규격
+        let SHELL_SPACING = 35;
+        let BASE_NUCLEUS_RADIUS = 28;
+
+        // 특수효과 파티클 배열
+        let particles = [];
+
+
+        // ==========================================
+        // 4. UI 및 유틸리티 도우미 함수
+        // ==========================================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-800 text-white";
+            if (type === 'success') bgClass = "bg-emerald-600 text-white";
+            if (type === 'error') bgClass = "bg-rose-600 text-white";
+
+            toast.className = `${bgClass} px-4 py-2.5 rounded-lg shadow-lg text-xs font-bold transition-all duration-300 transform translate-y-2 opacity-0 flex items-center space-x-2`;
+            toast.innerHTML = `
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            // 애니메이션 유입
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
+            // 페이드아웃 및 제거
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        function getIonOuterRadius(atom) {
+            const maxShellCount = atom.shells.length;
+            return BASE_NUCLEUS_RADIUS + maxShellCount * SHELL_SPACING + 12;
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const rect = container.getBoundingClientRect();
+            
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            width = rect.width;
+            height = rect.height;
+
+            // 모바일 해상도일 때 스케일링 스펙 수축
+            const isMobile = width < 768;
+            if (isMobile) {
+                SHELL_SPACING = 22;
+                BASE_NUCLEUS_RADIUS = 20;
+            } else {
+                SHELL_SPACING = 35;
+                BASE_NUCLEUS_RADIUS = 28;
+            }
+
+            // 실시간 객체 전자 껍질 규격 재생성 적용
+            if (atomMetal) {
+                atomMetal.rebuild();
+            }
+            atomsNonmetal.forEach(nm => {
+                nm.rebuild();
+            });
+
+            // 반응형 레이아웃에 따른 이온 공간 정렬
+            if (atomMetal && atomsNonmetal.length > 0) {
+                atomMetal.targetX = width * 0.25;
+                
+                if (atomsNonmetal.length === 1) {
+                    atomsNonmetal[0].targetX = width * 0.75;
+                    if (gameState !== STATE.SUCCESS) {
+                        atomsNonmetal[0].x = atomsNonmetal[0].targetX;
+                        atomsNonmetal[0].y = height / 2;
+                    }
+                } else if (atomsNonmetal.length === 2) {
+                    atomsNonmetal[0].targetX = width * 0.75;
+                    atomsNonmetal[1].targetX = width * 0.75;
+                    if (gameState !== STATE.SUCCESS) {
+                        atomsNonmetal[0].x = atomsNonmetal[0].targetX;
+                        atomsNonmetal[0].y = height * 0.3;
+                        atomsNonmetal[1].x = atomsNonmetal[1].targetX;
+                        atomsNonmetal[1].y = height * 0.7;
+                    }
+                }
+                
+                if (gameState !== STATE.SUCCESS) {
+                    atomMetal.x = atomMetal.targetX;
+                    atomMetal.y = height / 2;
+                }
+            }
+        }
+
+
+        // ==========================================
+        // 5. 이온 및 원자 물리 렌더링 클래스 (Atom)
+        // ==========================================
+        class Atom {
+            constructor(type, config, x, y, idSuffix = "0") {
+                this.type = type; // 'metal' | 'nonmetal'
+                this.idSuffix = idSuffix;
+                this.name = config.name;
+                this.symbol = config.symbol;
+                this.pCount = config.pCount;
+                this.baseColor = config.color;
+                this.textColor = config.textColor;
+
+                this.x = x;
+                this.y = y;
+                this.targetX = x;
+                this.targetY = y;
+                this.radius = BASE_NUCLEUS_RADIUS + 7;
+                
+                this.originalShells = [...config.shells];
+                this.shells = [...config.shells];
+                
+                this.charge = 0;
+                this.receivedCount = 0;
+
+                this.isIonized = false;
+                this.transferredCount = 0;
+
+                this.electrons = [];
+                this.initElectrons();
+            }
+
+            initElectrons() {
+                this.electrons = [];
+                for (let sIdx = 0; sIdx < this.shells.length; sIdx++) {
+                    const eCount = this.shells[sIdx];
+                    const radius = BASE_NUCLEUS_RADIUS + (sIdx + 1) * SHELL_SPACING;
+                    
+                    for (let eIdx = 0; eIdx < eCount; eIdx++) {
+                        const angle = (Math.PI * 2 / eCount) * eIdx;
+                        const isValence = (this.type === 'metal' && sIdx === this.shells.length - 1);
+                        
+                        this.electrons.push({
+                            shellIndex: sIdx,
+                            angle: angle,
+                            radius: radius,
+                            isValence: isValence,
+                            isDragging: false,
+                            dragX: 0,
+                            dragY: 0,
+                            homeAtom: this,
+                            id: `${this.type}-${this.idSuffix}-s${sIdx}-e${eIdx}`
+                        });
+                    }
+                }
+            }
+
+            updateToIon(transferredCount) {
+                this.isIonized = true;
+                this.transferredCount = transferredCount;
+                if (this.type === 'metal') {
+                    this.charge = transferredCount;
+                    this.shells = [...this.originalShells];
+                    this.shells.pop(); // 바깥 전자 껍질 제거
+                } else {
+                    this.charge = -this.receivedCount;
+                    this.shells = [...this.originalShells];
+                    this.shells[this.shells.length - 1] = this.originalShells[this.originalShells.length - 1] + this.receivedCount;
+                }
+                this.initElectrons();
+            }
+
+            rebuild() {
+                this.radius = BASE_NUCLEUS_RADIUS + 7;
+                if (this.isIonized) {
+                    this.updateToIon(this.transferredCount);
+                } else {
+                    this.shells = [...this.originalShells];
+                    this.initElectrons();
+                }
+            }
+
+            draw() {
+                // 전자 껍질(점선) 그리기
+                const maxShellCount = this.shells.length;
+                for (let i = 0; i < maxShellCount; i++) {
+                    const shellRadius = BASE_NUCLEUS_RADIUS + (i + 1) * SHELL_SPACING;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, shellRadius, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(147, 197, 253, 0.25)"; 
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // 양성자 핵 그리기
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.baseColor;
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "#b91c1c";
+                ctx.stroke();
+
+                // 중심 핵 텍스트 드로잉
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 14px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(`${this.pCount}+`, this.x, this.y - 10);
+
+                ctx.font = "bold 16px sans-serif";
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(this.symbol, this.x, this.y + 10);
+
+                // 고정 상태 전자 드로잉
+                this.electrons.forEach(elec => {
+                    if (elec.isDragging) return;
+
+                    // 성공 단계일 때는 교과서 배치 정렬을 위해 전자 공전을 멈춤
+                    const timeAngle = (gameState === STATE.SUCCESS) ? 0 : Date.now() * 0.0007 * (1 / (elec.shellIndex + 1.5));
+                    const currentAngle = elec.angle + timeAngle;
+
+                    const ex = this.x + Math.cos(currentAngle) * elec.radius;
+                    const ey = this.y + Math.sin(currentAngle) * elec.radius;
+
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 7.5, 0, Math.PI * 2);
+                    ctx.fillStyle = "#0284c7";
+                    ctx.fill();
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.stroke();
+
+                    // 전자의 (-) 음전하 가로선 드로잉
+                    ctx.beginPath();
+                    ctx.moveTo(ex - 3.5, ey);
+                    ctx.lineTo(ex + 3.5, ey);
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                });
+
+                // 화학 대괄호 `[` `]` 및 이온 전하 드로잉
+                if (this.charge !== 0) {
+                    const outerRadius = getIonOuterRadius(this);
+                    const bracketWidth = 14;
+                    
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+                    ctx.lineWidth = 2.5;
+
+                    // 좌괄호 [
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - outerRadius + bracketWidth, this.y - outerRadius);
+                    ctx.lineTo(this.x - outerRadius, this.y - outerRadius);
+                    ctx.lineTo(this.x - outerRadius, this.y + outerRadius);
+                    ctx.lineTo(this.x - outerRadius + bracketWidth, this.y + outerRadius);
+                    ctx.stroke();
+
+                    // 우괄호 ]
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + outerRadius - bracketWidth, this.y - outerRadius);
+                    ctx.lineTo(this.x + outerRadius, this.y - outerRadius);
+                    ctx.lineTo(this.x + outerRadius, this.y + outerRadius);
+                    ctx.lineTo(this.x + outerRadius - bracketWidth, this.y + outerRadius);
+                    ctx.stroke();
+
+                    // 우상단 전하 표시 (교과서 규격에 맞게 위 첨자로 렌더링)
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 20px sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "middle";
+
+                    let chargeText = "";
+                    if (this.charge > 0) chargeText = this.charge === 1 ? "+" : `${this.charge}+`;
+                    if (this.charge < 0) chargeText = Math.abs(this.charge) === 1 ? "-" : `${Math.abs(this.charge)}-`;
+
+                    ctx.fillText(chargeText, this.x + outerRadius + 4, this.y - outerRadius + 6);
+                }
+            }
+        }
+
+
+        // ==========================================
+        // 6. 상태 흐름 제어 및 진행 상태 바인딩
+        // ==========================================
+        let electronsTransferred = 0;
+
+        function loadStage(idx) {
+            currentStageIdx = idx;
+            currentStageData = STAGES[idx];
+            electronsTransferred = 0;
+            gameState = STATE.ELECTRON_TRANSFER;
+            selectedElectron = null;
+            isDraggingAtom = false;
+            particles = [];
+            atomsNonmetal = [];
+
+            // 좌측 패널 정보 업데이트
+            document.getElementById('stage-badge').innerText = `STAGE ${idx + 1} / 3`;
+            document.getElementById('stage-title').innerText = currentStageData.name;
+            document.getElementById('stage-description').innerText = currentStageData.desc;
+            
+            // 미션 카드 초기화
+            updateMissionText();
+
+            // 도트 표시기 제어
+            for (let i = 0; i < 3; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i === idx) {
+                    dot.className = "w-3 h-3 rounded-full bg-indigo-600 transition-all";
+                } else if (i < idx) {
+                    dot.className = "w-3 h-3 rounded-full bg-emerald-500 transition-all";
+                } else {
+                    dot.className = "w-3 h-3 rounded-full bg-slate-300 transition-all";
+                }
+            }
+
+            // 하단 상태 텍스트
+            document.getElementById('simulation-status-text').innerText = "전자 이동 준비 완료";
+            document.getElementById('simulation-status-text').className = "text-indigo-600 font-bold animate-pulse";
+
+            // 다음 스테이지 버튼 비활성화 및 기본 상태 초기화
+            const nextBtn = document.getElementById('btn-next-stage');
+            nextBtn.disabled = true;
+            nextBtn.className = "flex-1 py-2.5 bg-slate-300 text-slate-500 cursor-not-allowed rounded-lg font-bold text-xs transition flex justify-center items-center space-x-1";
+            
+            const btnTextSpan = document.getElementById('btn-next-text');
+            if (btnTextSpan) {
+                btnTextSpan.innerText = "다음 물질 탐구";
+            }
+            nextBtn.onclick = goToNextStage;
+
+            // 물리 원자 인스턴스 재생성
+            resizeCanvas();
+
+            // 금속 원자 생성
+            atomMetal = new Atom('metal', currentStageData.metal, width * 0.25, height / 2, "0");
+
+            // 비금속 원자 개수별로 캔버스 좌표 배치
+            const count = currentStageData.nonmetalCount || 1;
+            if (count === 1) {
+                const nonmetalAtom = new Atom('nonmetal', currentStageData.nonmetal, width * 0.75, height / 2, "0");
+                atomsNonmetal.push(nonmetalAtom);
+            } else if (count === 2) {
+                // MgF2: 위쪽 플루오린, 아래쪽 플루오린 총 2개 생성
+                const nonmetal1 = new Atom('nonmetal', currentStageData.nonmetal, width * 0.75, height * 0.3, "0");
+                const nonmetal2 = new Atom('nonmetal', currentStageData.nonmetal, width * 0.75, height * 0.7, "1");
+                atomsNonmetal.push(nonmetal1, nonmetal2);
+            }
+
+            // 상태 텍스트 초기화
+            updateStatusText();
+
+            showToast(`${currentStageData.name} 미션을 시작합니다!`);
+        }
+
+        function updateMissionText() {
+            const mText = document.getElementById('mission-text');
+            if (gameState === STATE.ELECTRON_TRANSFER) {
+                const left = currentStageData.transferNeeded - electronsTransferred;
+                if (currentStageIdx === 1) {
+                    mText.innerHTML = `💡 왼쪽 <b>마그네슘(Mg)</b>의 2개 전자를 각각 **서로 다른 플루오린(F) 원자**에 1개씩 나누어 이동시켜주세요! (남은 전자: ${left}개)`;
+                } else {
+                    mText.innerHTML = `💡 왼쪽 <b>${currentStageData.metal.name}(${currentStageData.metal.symbol})</b>의 바깥쪽 전자를 오른쪽 <b>${currentStageData.nonmetal.name}(${currentStageData.nonmetal.symbol})</b>의 빈자리로 드래그하여 이동시키세요! (남은 전자: ${left}개)`;
+                }
+            } else if (gameState === STATE.ION_ATTRACTION) {
+                if (currentStageIdx === 1) {
+                    mText.innerHTML = `🧲 <b>이온화 완료!</b> 1개의 양이온(Mg<sup>2+</sup>)과 2개의 음이온(F<sup>-</sup>) 사이에 정전기적 인력이 생겼습니다. 이온을 드래그해서 <b>가까이 결합시키세요!</b>`;
+                } else {
+                    const metalSign = currentStageData.transferNeeded === 1 ? "+" : `${currentStageData.transferNeeded}+`;
+                    const nonmetalSign = currentStageData.transferNeeded === 1 ? "-" : `${currentStageData.transferNeeded}-`;
+                    mText.innerHTML = `🧲 <b>이온화 완료!</b> 양이온(${currentStageData.metal.symbol}<sup>${metalSign}</sup>)과 음이온(${currentStageData.nonmetal.symbol}<sup>${nonmetalSign}</sup>) 사이에 정전기적 인력이 발생했습니다. 이온을 <b>드래그하여 가깝게 끌어당겨 화학 결합을 완성</b>시키세요!`;
+                }
+            } else if (gameState === STATE.SUCCESS) {
+                mText.innerHTML = `🎉 <b>탐구 완료!</b> 안정된 이온결합 화합물이 탄생했습니다. 아래 '다음 물질 탐구' 버튼을 눌러주세요.`;
+            }
+        }
+
+        function updateStatusText() {
+            const ms = document.getElementById('metal-status');
+            const nms = document.getElementById('nonmetal-status');
+            const metalLabel = document.getElementById('metal-label');
+            const nonmetalLabel = document.getElementById('nonmetal-label');
+
+            if (gameState === STATE.ELECTRON_TRANSFER) {
+                metalLabel.innerText = "금속 원소 (이온화)";
+                nonmetalLabel.innerText = "비금속 원소 (이온화)";
+
+                ms.innerHTML = `${currentStageData.metal.symbol} (전하: 0)`;
+                ms.className = "text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded";
+                
+                if (currentStageIdx === 1) {
+                    nms.innerHTML = `2 × ${currentStageData.nonmetal.symbol} (전하: 0)`;
+                } else {
+                    nms.innerHTML = `${currentStageData.nonmetal.symbol} (전하: 0)`;
+                }
+                nms.className = "text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded";
+            } else {
+                metalLabel.innerText = "금속 이온 상태";
+                nonmetalLabel.innerText = "비금속 이온 상태";
+
+                const metalSign = currentStageData.transferNeeded === 1 ? "+" : `${currentStageData.transferNeeded}+`;
+                ms.innerHTML = `${currentStageData.metal.symbol}<sup>${metalSign}</sup> 이온`;
+                ms.className = "text-xs font-bold text-orange-100 bg-orange-600 px-2 py-0.5 rounded shadow-sm";
+
+                if (currentStageIdx === 1) {
+                    nms.innerHTML = `2 × F<sup>-</sup> 이온`;
+                } else {
+                    const nonmetalSign = currentStageData.transferNeeded === 1 ? "-" : `${currentStageData.transferNeeded}-`;
+                    nms.innerHTML = `${currentStageData.nonmetal.symbol}<sup>${nonmetalSign}</sup> 이온`;
+                }
+                nms.className = "text-xs font-bold text-emerald-100 bg-emerald-600 px-2 py-0.5 rounded shadow-sm";
+            }
+        }
+
+        function handleElectronDropSuccess(targetNonmetal) {
+            electronsTransferred++;
+            AudioEngine.playTransfer();
+            createSplash(targetNonmetal.x, targetNonmetal.y, "#0284c7");
+            showToast(`${targetNonmetal.name} 원자가 전자를 받았습니다!`, "success");
+
+            if (electronsTransferred >= currentStageData.transferNeeded) {
+                gameState = STATE.ION_ATTRACTION;
+                
+                // 원자에서 이온 상태로 일제히 전환 업데이트
+                atomMetal.updateToIon(currentStageData.transferNeeded);
+                atomsNonmetal.forEach(nm => {
+                    nm.updateToIon(nm.receivedCount);
+                });
+                
+                document.getElementById('simulation-status-text').innerText = "이온화 완료! 정전기적 인력 가능";
+                document.getElementById('simulation-status-text').className = "text-rose-600 font-bold animate-bounce";
+                
+                AudioEngine.playSuccess();
+                showToast("모든 원자가 안정한 상태의 이온이 되었습니다! 이온들을 서로 가깝게 끌어당겨 화학결합을 시키세요.", "success");
+            }
+
+            updateMissionText();
+            updateStatusText();
+        }
+
+
+        // ==========================================
+        // 7. 마우스 & 터치 드래그 인터랙션 컨트롤러
+        // ==========================================
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX, clientY;
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+                clientX = evt.changedTouches[0].clientX;
+                clientY = evt.changedTouches[0].clientY;
+            } else {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            }
+
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function onStart(evt) {
+            evt.preventDefault();
+            const pos = getMousePos(evt);
+
+            if (gameState === STATE.ELECTRON_TRANSFER) {
+                // 원자가 전자를 드래그 중인지 판단
+                atomMetal.electrons.forEach(elec => {
+                    if (elec.isValence && !elec.isDragging) {
+                        const timeAngle = Date.now() * 0.0007 * (1 / (elec.shellIndex + 1.5));
+                        const currentAngle = elec.angle + timeAngle;
+                        const ex = atomMetal.x + Math.cos(currentAngle) * elec.radius;
+                        const ey = atomMetal.y + Math.sin(currentAngle) * elec.radius;
+
+                        const dist = Math.hypot(pos.x - ex, pos.y - ey);
+                        if (dist < 22) {
+                            AudioEngine.playClick();
+                            selectedElectron = elec;
+                            elec.isDragging = true;
+                            elec.dragX = pos.x;
+                            elec.dragY = pos.y;
+                            canvas.classList.add('cursor-grabbing');
+                        }
+                    }
+                });
+            } else if (gameState === STATE.ION_ATTRACTION) {
+                // 이온 인력 상태에서 원자가 잡혔는지 판단
+                const distToMetal = Math.hypot(pos.x - atomMetal.x, pos.y - atomMetal.y);
+                if (distToMetal < atomMetal.radius + 30) {
+                    AudioEngine.playClick();
+                    isDraggingAtom = true;
+                    dragTarget = 'metal';
+                    canvas.classList.add('cursor-grabbing');
+                    return;
+                }
+
+                for (let i = 0; i < atomsNonmetal.length; i++) {
+                    const distToNonmetal = Math.hypot(pos.x - atomsNonmetal[i].x, pos.y - atomsNonmetal[i].y);
+                    if (distToNonmetal < atomsNonmetal[i].radius + 30) {
+                        AudioEngine.playClick();
+                        isDraggingAtom = true;
+                        dragTarget = `nonmetal${i}`;
+                        canvas.classList.add('cursor-grabbing');
+                        return;
+                    }
+                }
+            }
+        }
+
+        function onMove(evt) {
+            if (!selectedElectron && !isDraggingAtom) return;
+            const pos = getMousePos(evt);
+
+            if (selectedElectron) {
+                selectedElectron.dragX = pos.x;
+                selectedElectron.dragY = pos.y;
+            }
+
+            if (isDraggingAtom) {
+                if (dragTarget === 'metal') {
+                    atomMetal.x = Math.max(80, Math.min(pos.x, width - 80));
+                    atomMetal.y = Math.max(80, Math.min(pos.y, height - 80));
+                } else if (dragTarget.startsWith('nonmetal')) {
+                    const idx = parseInt(dragTarget.replace('nonmetal', ''));
+                    atomsNonmetal[idx].x = Math.max(80, Math.min(pos.x, width - 80));
+                    atomsNonmetal[idx].y = Math.max(80, Math.min(pos.y, height - 80));
+                }
+            }
+        }
+
+        function onEnd(evt) {
+            canvas.classList.remove('cursor-grabbing');
+
+            if (selectedElectron) {
+                let dropMatched = false;
+
+                for (let i = 0; i < atomsNonmetal.length; i++) {
+                    const targetAtom = atomsNonmetal[i];
+                    const limitPerNonmetal = (currentStageIdx === 1) ? 1 : currentStageData.transferNeeded;
+                    
+                    if (targetAtom.receivedCount >= limitPerNonmetal) {
+                        continue; 
+                    }
+
+                    const dropDist = Math.hypot(selectedElectron.dragX - targetAtom.x, selectedElectron.dragY - targetAtom.y);
+                    const outermostShellIdx = targetAtom.shells.length - 1;
+                    const targetShellRadius = BASE_NUCLEUS_RADIUS + (outermostShellIdx + 1) * SHELL_SPACING;
+
+                    if (Math.abs(dropDist - targetShellRadius) < 55 || dropDist < targetShellRadius) {
+                        targetAtom.receivedCount++;
+                        targetAtom.shells[outermostShellIdx]++;
+                        targetAtom.initElectrons();
+
+                        handleElectronDropSuccess(targetAtom);
+                        
+                        const index = atomMetal.electrons.indexOf(selectedElectron);
+                        if (index > -1) {
+                            atomMetal.electrons.splice(index, 1);
+                            atomMetal.shells[selectedElectron.shellIndex]--;
+                        }
+                        dropMatched = true;
+                        break;
+                    }
+                }
+
+                if (!dropMatched) {
+                    AudioEngine.playFailure();
+                    if (currentStageIdx === 1) {
+                        showToast("아직 전자를 덜 채운 빈 전자 껍질의 플루오린(F) 영역 내로 가져가 주세요.", "error");
+                    } else {
+                        showToast("원자 밖으로 떨어졌습니다. 비금속 원자 전자 껍질 영역 안으로 드래그해주세요.", "error");
+                    }
+                }
+                
+                if (selectedElectron) selectedElectron.isDragging = false;
+                selectedElectron = null;
+            }
+
+            if (isDraggingAtom) {
+                isDraggingAtom = false;
+                dragTarget = null;
+            }
+        }
+
+
+        // ==========================================
+        // 8. 시뮬레이션 드로잉 & 정전기 인력 업데이트 루프
+        // ==========================================
+        function createSplash(x, y, color = '#FFD43B') {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 4 + 3,
+                    color: color,
+                    alpha: 1,
+                    life: 1.0 // 100% life
+                });
+            }
+        }
+
+        function updateAndDrawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+                p.life -= 0.03;
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.restore();
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function updatePhysics() {
+            if (gameState === STATE.ION_ATTRACTION) {
+                if (currentStageIdx === 1) {
+                    // 1:2 삼자 이온결합 거리 계산 (MgF2)
+                    const distToCl1 = Math.hypot(atomMetal.x - atomsNonmetal[0].x, atomMetal.y - atomsNonmetal[0].y);
+                    const distToCl2 = Math.hypot(atomMetal.x - atomsNonmetal[1].x, atomMetal.y - atomsNonmetal[1].y);
+                    
+                    const rMetal = getIonOuterRadius(atomMetal);
+                    const rNonmetal1 = getIonOuterRadius(atomsNonmetal[0]);
+                    const rNonmetal2 = getIonOuterRadius(atomsNonmetal[1]);
+                    
+                    const minDistance1 = rMetal + rNonmetal1 + 25;
+                    const minDistance2 = rMetal + rNonmetal2 + 25;
+                    
+                    const bondThreshold1 = minDistance1 + 30;
+                    const bondThreshold2 = minDistance2 + 30;
+                    
+                    if (distToCl1 < bondThreshold1 && distToCl2 < bondThreshold2) {
+                        gameState = STATE.SUCCESS;
+                        AudioEngine.playSuccess();
+                        
+                        const centerX = width * 0.5;
+                        const centerY = height * 0.5;
+
+                        atomMetal.targetX = centerX;
+                        atomMetal.targetY = centerY;
+                        
+                        const sep1 = Math.min(minDistance1, width * 0.38);
+                        const sep2 = Math.min(minDistance2, width * 0.38);
+
+                        atomsNonmetal[0].targetX = centerX - sep1;
+                        atomsNonmetal[0].targetY = centerY;
+                        
+                        atomsNonmetal[1].targetX = centerX + sep2;
+                        atomsNonmetal[1].targetY = centerY;
+
+                        triggerCompleteModal();
+                    }
+                } else {
+                    // 1:1 일반 이온결합 거리 계산 (NaCl, MgO)
+                    const distance = Math.hypot(atomMetal.x - atomsNonmetal[0].x, atomMetal.y - atomsNonmetal[0].y);
+                    
+                    const rMetal = getIonOuterRadius(atomMetal);
+                    const rNonmetal = getIonOuterRadius(atomsNonmetal[0]);
+                    
+                    const minDistance = rMetal + rNonmetal + 25;
+                    const bondThreshold = minDistance + 35;
+                    
+                    if (distance < bondThreshold) {
+                        gameState = STATE.SUCCESS;
+                        AudioEngine.playSuccess();
+                        
+                        const center = (atomMetal.x + atomsNonmetal[0].x) / 2;
+                        createSplash(center, height / 2, "#10B981");
+                        
+                        const sep = Math.min(minDistance, width * 0.42);
+
+                        atomMetal.targetX = center - (sep / 2);
+                        atomsNonmetal[0].targetX = center + (sep / 2);
+
+                        triggerCompleteModal();
+                    }
+                }
+            }
+
+            // 복귀 제어식 (감쇠 운동 처리)
+            if (!isDraggingAtom) {
+                if (gameState === STATE.SUCCESS) {
+                    atomMetal.x += (atomMetal.targetX - atomMetal.x) * 0.12;
+                    atomMetal.y += (height / 2 - atomMetal.y) * 0.12;
+
+                    atomsNonmetal.forEach(nm => {
+                        nm.x += (nm.targetX - nm.x) * 0.12;
+                        nm.y += (nm.targetY - nm.y) * 0.12;
+                    });
+                } else {
+                    atomMetal.x += (atomMetal.targetX - atomMetal.x) * 0.1;
+                    atomMetal.y += (height / 2 - atomMetal.y) * 0.1;
+
+                    atomsNonmetal.forEach((nm, idx) => {
+                        nm.x += (nm.targetX - nm.x) * 0.1;
+                        if (currentStageIdx === 1) {
+                            const originalY = (idx === 0) ? height * 0.3 : height * 0.7;
+                            nm.y += (originalY - nm.y) * 0.1;
+                        } else {
+                            nm.y += (height / 2 - nm.y) * 0.1;
+                        }
+                    });
+                }
+            }
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 평탄한 우주 테마 어두운 배경 드로잉
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, width, height);
+
+            // 미세 가이드 그리드 렌더링
+            ctx.strokeStyle = "rgba(30, 41, 59, 0.5)";
+            ctx.lineWidth = 1;
+            const gridSize = 40;
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+            }
+
+            // 인력 끌어당기기 가이드라인 렌더링
+            if (gameState === STATE.ION_ATTRACTION) {
+                ctx.save();
+                ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 4]);
+                
+                atomsNonmetal.forEach(nm => {
+                    ctx.beginPath();
+                    ctx.moveTo(atomMetal.x, atomMetal.y);
+                    ctx.lineTo(nm.x, nm.y);
+                    ctx.stroke();
+                });
+                ctx.restore();
+
+                ctx.fillStyle = "#F87171";
+                ctx.font = "bold 13px sans-serif";
+                ctx.textAlign = "center";
+                if (currentStageIdx === 1) {
+                    ctx.fillText("🧲 정전기적 인력 작동 중! Mg²⁺를 정중앙으로, 두 F⁻를 양옆으로 드래그해 붙이세요", width * 0.5, 45);
+                } else {
+                    ctx.fillText("🧲 정전기적 인력 작용 중! 서로 드래그하여 가깝게 붙이세요", (atomMetal.x + atomsNonmetal[0].x) / 2, height / 2 - 35);
+                }
+            }
+
+            // 성공 요약 결합 텍스트 표시 (대괄호/이온과 완전히 겹치지 않게 y축 오프셋을 아주 높여 보정)
+            if (gameState === STATE.SUCCESS) {
+                const centerX = (atomMetal.x + atomsNonmetal[0].x) / 2;
+                const centerY = height / 2;
+
+                ctx.fillStyle = "#34D399";
+                ctx.font = "bold 14px sans-serif";
+                ctx.textAlign = "center";
+                
+                // 1:2 구조인 MgF2(Stage 1)는 대괄호 높이가 있으므로 centerY-190에 배치, 1:1은 centerY-170에 안전 배치
+                ctx.fillText(`안정된 ${currentStageData.name} 결합 형성 완료!`, centerX, currentStageIdx === 1 ? centerY - 190 : centerY - 170);
+            }
+
+            // 물리 원소 객체 그리기
+            if (atomMetal) {
+                atomMetal.draw();
+            }
+            atomsNonmetal.forEach(nm => {
+                nm.draw();
+            });
+
+            // 드래그 중인 전하 기호 그리기
+            if (selectedElectron) {
+                ctx.beginPath();
+                ctx.arc(selectedElectron.dragX, selectedElectron.dragY, 8.5, 0, Math.PI * 2);
+                ctx.fillStyle = "#0284c7";
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(selectedElectron.dragX - 4, selectedElectron.dragY);
+                ctx.lineTo(selectedElectron.dragX + 4, selectedElectron.dragY);
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(selectedElectron.dragX, selectedElectron.dragY, 15, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(2, 132, 199, 0.25)";
+                ctx.fill();
+            }
+
+            updateAndDrawParticles();
+        }
+
+        // 애니메이션 게임 루프
+        function gameLoop() {
+            updatePhysics();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+
+        // ==========================================
+        // 9. 개념 탐구 모달 제어 및 스테이지 전환
+        // ==========================================
+        function triggerCompleteModal() {
+            document.getElementById('modal-title').innerText = `${currentStageData.name} 결합 성공! 🎉`;
+            document.getElementById('chemical-equation').innerHTML = currentStageData.equation;
+            document.getElementById('modal-detail-text').innerHTML = currentStageData.detail;
+            
+            // 모든 스테이지 완료 모달 팝업에서는 '다음 미션으로' 버튼을 가립니다. (오직 '결과 닫기'만 남김)
+            const nextBtn = document.getElementById('modal-next-btn');
+            if (nextBtn) nextBtn.classList.add('hidden');
+
+            document.getElementById('simulation-status-text').innerText = "결합 완료";
+            document.getElementById('simulation-status-text').className = "text-emerald-500 font-bold";
+
+            // 대신 좌측 컨트롤 패널의 하단 버튼을 동적으로 변환하여 활성화합니다.
+            const sidebarNextBtn = document.getElementById('btn-next-stage');
+            if (sidebarNextBtn) {
+                sidebarNextBtn.disabled = false;
+                sidebarNextBtn.className = "flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition flex justify-center items-center space-x-1";
+                
+                const btnTextSpan = document.getElementById('btn-next-text');
+                if (btnTextSpan) {
+                    if (currentStageIdx >= STAGES.length - 1) {
+                        btnTextSpan.innerText = "종합 결과 보기";
+                    } else {
+                        btnTextSpan.innerText = "다음 물질 탐구";
+                    }
+                }
+                
+                // 성공 상태에 맞게 다음 스테이지 핸들러를 바인딩합니다.
+                sidebarNextBtn.onclick = goToNextStage;
+            }
+
+            setTimeout(() => {
+                const modal = document.getElementById('modal-container');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.children[0].classList.remove('scale-95');
+                }, 50);
+            }, 600);
+        }
+
+        function closeModal() {
+            AudioEngine.playClick();
+            const modal = document.getElementById('modal-container');
+            modal.children[0].classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function goToNextStageFromModal() {
+            closeModal();
+            setTimeout(() => {
+                goToNextStage();
+            }, 200);
+        }
+
+        // 다음 단계 진입 혹은 결과 종합 화면 유도
+        function goToNextStage() {
+            AudioEngine.playClick();
+            if (currentStageIdx < STAGES.length - 1) {
+                loadStage(currentStageIdx + 1);
+            } else {
+                triggerGameClear();
+            }
+        }
+
+        // 학습 마스터 최종 클리어 모달 정의
+        function triggerGameClear() {
+            document.getElementById('modal-title').innerText = "🏆 이온결합 마스터 완료!";
+            document.getElementById('chemical-equation').innerText = "🎉 대성공 🎉";
+            document.getElementById('modal-detail-text').innerHTML = `
+                축하합니다! 이온결합 탐구 과정을 마쳤습니다.<br><br>
+                • 금속과 비금속의 이온화 과정 이해!<br>
+                • 18족 원소와 같은 안정한 전자 배치 이해!<br>
+                • 1:1 결합(NaCl, MgO) 및 1:2 결합(MgF<sub>2</sub>) 이해!                
+            `;
+            
+            // 모달 내부의 버튼은 여전히 '결과 닫기'만 노출하여 모달 UI 일관성 유지
+            const nextBtn = document.getElementById('modal-next-btn');
+            if (nextBtn) nextBtn.classList.add('hidden');
+
+            // 좌측 패널 하단의 다음 물질 탐구 버튼을 다시 비활성화하거나 최종 안내 텍스트로 고정합니다.
+            const sidebarNextBtn = document.getElementById('btn-next-stage');
+            if (sidebarNextBtn) {
+                sidebarNextBtn.disabled = true;
+                sidebarNextBtn.className = "flex-1 py-2.5 bg-slate-300 text-slate-500 cursor-not-allowed rounded-lg font-bold text-xs transition flex justify-center items-center space-x-1";
+                const btnTextSpan = document.getElementById('btn-next-text');
+                if (btnTextSpan) {
+                    btnTextSpan.innerText = "전체 마스터 완료";
+                }
+            }
+
+            const modal = document.getElementById('modal-container');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.children[0].classList.remove('scale-95');
+            }, 50);
+        }
+
+        // 처음부터 다시 시작 시 리셋 핸들러
+        function restartGame() {
+            AudioEngine.playClick();
+            closeModal();
+            loadStage(0);
+        }
+
+        function resetCurrentStage() {
+            AudioEngine.playClick();
+            loadStage(currentStageIdx);
+        }
+
+
+        // ==========================================
+        // 10. 앱 로드 및 초기 이벤트 셋업
+        // ==========================================
+        window.onload = function() {
+            // 마우스 이벤트 연동
+            canvas.addEventListener('mousedown', onStart);
+            canvas.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+
+            // 터치 디바이스 연동 (태블릿, 스마트폰 지원)
+            canvas.addEventListener('touchstart', onStart, { passive: false });
+            canvas.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onEnd);
+
+            // 반응형 리사이즈 제어
+            window.addEventListener('resize', resizeCanvas);
+
+            // 스테이지 시동
+            loadStage(0);
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
